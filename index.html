@@ -11,14 +11,13 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="icon-192.png">
-<title>Closet</title>
+<title>Caleb’s Closet</title>
 <style>
 :root{
   --paper:#f5f1ea; --paper2:#ece6dc; --ink:#171512; --ink2:#5d5850; --ink3:#9a948a;
   --rule:#d9d2c6; --accent:#9c3d2a; --card:#fbf9f5;
-  --serif:"Didot","Bodoni 72","Bodoni MT","Iowan Old Style","Playfair Display",Georgia,serif;
-  --text:"Iowan Old Style","Palatino",Georgia,serif;
-  --sans:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --serif:var(--sans); --text:var(--sans);
   --st:env(safe-area-inset-top,0px); --sb:env(safe-area-inset-bottom,0px);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -29,16 +28,14 @@ input,select,textarea{font:inherit;color:inherit}
 .hidden{display:none!important}
 
 /* Masthead */
-.mast{padding:calc(var(--st) + 18px) 20px 10px;text-align:center;border-bottom:1px solid var(--ink)}
-.mast .kick{font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:var(--ink2);display:flex;justify-content:space-between}
-.mast h1{font-family:var(--serif);font-weight:400;font-size:52px;line-height:1;margin:8px 0 6px;letter-spacing:.06em}
-.mast .dek{font-family:var(--text);font-style:italic;color:var(--ink2);font-size:14px;margin:0}
+.mast{padding:calc(var(--st) + 16px) 18px 12px;border-bottom:1px solid var(--rule)}
+.mast h1{font-weight:700;font-size:28px;line-height:1.1;margin:0;letter-spacing:-.02em}
 
 /* Toolbar */
 .tools{position:sticky;top:0;z-index:5;background:var(--paper);padding:calc(var(--st)*0 + 10px) 16px 8px;border-bottom:1px solid var(--rule)}
 .search{display:flex;gap:8px;align-items:center}
 .search input{flex:1;min-width:0;border:0;border-bottom:1px solid var(--ink);background:transparent;padding:8px 2px;font-family:var(--text);font-size:16px;outline:none;border-radius:0}
-.search input::placeholder{color:var(--ink3);font-style:italic}
+.search input::placeholder{color:var(--ink3)}
 .iconbtn{font-size:11px;letter-spacing:.16em;text-transform:uppercase;padding:9px 10px;border:1px solid var(--ink);white-space:nowrap}
 .iconbtn.on{background:var(--ink);color:var(--paper)}
 .chips{display:flex;gap:18px;overflow-x:auto;padding:12px 2px 2px;scrollbar-width:none}
@@ -58,18 +55,18 @@ input,select,textarea{font:inherit;color:inherit}
 .clear{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-top:12px}
 
 /* Grid */
-.count{font-family:var(--text);font-style:italic;color:var(--ink2);font-size:13px;padding:12px 18px 0}
+.count{font-family:var(--text);color:var(--ink2);font-size:13px;padding:12px 18px 0}
 .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:22px 14px;padding:12px 16px 24px}
 @media(min-width:700px){.grid{grid-template-columns:repeat(4,1fr)}}
 .card{text-align:left;display:block}
 .ph{aspect-ratio:3/4;background:var(--paper2) center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:44px;color:var(--ink3)}
 .card .meta{padding-top:8px}
 .brand{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink2)}
-.nm{font-family:var(--text);font-size:15px;line-height:1.25;margin-top:3px}
+.nm{font-family:var(--text);font-size:14px;font-weight:500;line-height:1.25;margin-top:3px}
 .sub{font-size:11px;color:var(--ink3);margin-top:3px}
 .empty{text-align:center;padding:60px 30px;color:var(--ink2)}
-.empty h2{font-family:var(--serif);font-weight:400;font-size:30px;margin:0 0 8px;color:var(--ink)}
-.empty p{font-family:var(--text);font-style:italic;margin:0}
+.empty h2{font-family:var(--serif);font-weight:600;font-size:22px;margin:0 0 8px;color:var(--ink)}
+.empty p{font-family:var(--text);margin:0}
 
 /* FAB */
 .fab{position:fixed;right:18px;bottom:calc(84px + var(--sb));width:56px;height:56px;border-radius:50%;background:var(--ink);color:var(--paper);font-size:30px;font-weight:200;line-height:56px;text-align:center;box-shadow:0 6px 18px rgba(0,0,0,.2);z-index:6}
@@ -84,19 +81,19 @@ input,select,textarea{font:inherit;color:inherit}
 .sheet.open{transform:none;visibility:visible;transition:transform .28s ease}
 .sheethead{position:sticky;top:0;z-index:2;background:var(--paper);display:flex;justify-content:space-between;align-items:center;padding:calc(var(--st) + 10px) 16px 10px;border-bottom:1px solid var(--rule)}
 .sheethead button{font-size:11px;letter-spacing:.18em;text-transform:uppercase;padding:6px 2px}
-.sheethead .ttl{font-family:var(--serif);font-size:20px}
+.sheethead .ttl{font-family:var(--serif);font-size:17px;font-weight:600}
 .sheethead .save{color:var(--accent);font-weight:600}
 
 /* Detail */
 .hero{aspect-ratio:3/4;max-height:70vh;width:100%;background:var(--paper2) center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:90px;color:var(--ink3)}
 .dbody{padding:18px 20px}
 .dbody .brand{font-size:11px}
-.dbody h2{font-family:var(--serif);font-weight:400;font-size:34px;line-height:1.05;margin:6px 0 4px}
-.dbody .facts{font-family:var(--text);font-style:italic;color:var(--ink2);font-size:14px}
+.dbody h2{font-family:var(--serif);font-weight:600;font-size:28px;line-height:1.15;letter-spacing:-.01em;margin:6px 0 4px}
+.dbody .facts{font-family:var(--text);color:var(--ink2);font-size:14px}
 .stats4{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);margin:18px 0}
 .stats4 div{padding:12px 4px;text-align:center;border-right:1px solid var(--rule)}
 .stats4 div:last-child{border-right:0}
-.stats4 b{display:block;font-family:var(--serif);font-weight:400;font-size:22px}
+.stats4 b{display:block;font-family:var(--serif);font-weight:500;font-size:19px}
 .stats4 span{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink2)}
 .primary{display:block;width:100%;background:var(--ink);color:var(--paper);padding:15px;font-size:12px;letter-spacing:.24em;text-transform:uppercase}
 .primary.done{background:var(--accent)}
@@ -134,7 +131,7 @@ input,select,textarea{font:inherit;color:inherit}
 .big4 div{padding:18px 6px;border-bottom:1px solid var(--rule)}
 .big4 div:nth-child(odd){border-right:1px solid var(--rule)}
 .big4 div:nth-last-child(-n+2){border-bottom:0}
-.big4 b{display:block;font-family:var(--serif);font-weight:400;font-size:34px;line-height:1.05}
+.big4 b{display:block;font-family:var(--serif);font-weight:500;font-size:30px;letter-spacing:-.02em;line-height:1.05}
 .big4 span{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink2)}
 .rank{list-style:none;margin:0;padding:0;counter-reset:r}
 .rank li{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--rule);cursor:pointer}
@@ -148,16 +145,16 @@ input,select,textarea{font:inherit;color:inherit}
 .bar .b{flex:1;height:8px;background:var(--paper2)}
 .bar .b i{display:block;height:100%;background:var(--ink)}
 .bar .c{width:28px;text-align:right;font-family:var(--serif);font-size:15px}
-.muted{font-family:var(--text);font-style:italic;color:var(--ink2);font-size:14px;padding:8px 0}
+.muted{font-family:var(--text);color:var(--ink2);font-size:14px;padding:8px 0}
 .para{font-family:var(--text);font-size:15px;line-height:1.55;color:var(--ink2)}
 /* Online search */
 .findbtn{display:block;margin:-6px auto 20px;font-size:11px;letter-spacing:.22em;text-transform:uppercase;border:1px solid var(--ink);padding:10px 16px}
-.findbtn b{font-family:var(--serif);font-weight:400;font-style:italic;letter-spacing:0;text-transform:none;font-size:14px;margin-right:4px}
-.ainote{text-align:center;font-family:var(--text);font-style:italic;color:var(--accent);font-size:13px;margin:-10px 0 14px}
+.findbtn b{font-weight:400;margin-right:2px}
+.ainote{text-align:center;font-family:var(--text);color:var(--accent);font-size:13px;margin:-10px 0 14px}
 .sbar{position:sticky;top:calc(var(--st) + 49px);z-index:2;background:var(--paper);display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid var(--rule)}
 .sbar input{flex:1;min-width:0;border:0;border-bottom:1px solid var(--ink);background:transparent;padding:8px 2px;font-family:var(--text);font-size:16px;outline:none;border-radius:0}
 .sbar button{background:var(--ink);color:var(--paper);font-size:11px;letter-spacing:.18em;text-transform:uppercase;padding:0 14px}
-.shint{font-family:var(--text);font-style:italic;color:var(--ink2);font-size:14px;padding:14px 18px;text-align:center}
+.shint{font-family:var(--text);color:var(--ink2);font-size:14px;padding:14px 18px;text-align:center}
 .sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:6px 10px 20px}
 .sres{position:relative;aspect-ratio:3/4;background:var(--paper2) center/cover no-repeat;overflow:hidden}
 .sres small{position:absolute;left:0;right:0;bottom:0;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.55));padding:14px 5px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
@@ -172,11 +169,7 @@ input,select,textarea{font:inherit;color:inherit}
 
 <!-- CLOSET VIEW -->
 <section id="v-closet">
-  <header class="mast">
-    <div class="kick"><span id="mDate"></span><span id="mCount"></span></div>
-    <h1>CLOSET</h1>
-    <p class="dek">An index of everything you own &amp; wear</p>
-  </header>
+  <header class="mast"><h1>Caleb’s Closet</h1></header>
   <div class="tools">
     <div class="search">
       <input id="q" type="search" placeholder="Search pieces, brands, tags…" autocomplete="off">
@@ -208,21 +201,13 @@ input,select,textarea{font:inherit;color:inherit}
 
 <!-- NUMBERS VIEW -->
 <section id="v-numbers" class="hidden">
-  <header class="mast">
-    <div class="kick"><span>The Numbers</span><span id="nDate"></span></div>
-    <h1>LEDGER</h1>
-    <p class="dek">What you wear, and what it costs you</p>
-  </header>
+  <header class="mast"><h1>Caleb’s Closet</h1></header>
   <div class="page" id="numbers"></div>
 </section>
 
 <!-- ARCHIVE VIEW -->
 <section id="v-archive" class="hidden">
-  <header class="mast">
-    <div class="kick"><span>Backup</span><span>Settings</span></div>
-    <h1>ARCHIVE</h1>
-    <p class="dek">Your closet lives on this phone — keep a copy</p>
-  </header>
+  <header class="mast"><h1>Caleb’s Closet</h1></header>
   <div class="page">
     <div class="section">
       <h3>Export</h3>
@@ -389,7 +374,7 @@ function renderFilterPanel(){
 function renderCloset(){
   renderChips();renderFilterPanel();
   const l=filtered();
-  $('#mCount').textContent=items.length+(items.length===1?' piece':' pieces');
+  
   $('#count').textContent=items.length?(l.length===items.length?'':`Showing ${l.length} of ${items.length}`):'';
   $('#count').classList.toggle('hidden',!$('#count').textContent);
   const g=$('#grid'),e=$('#empty');
@@ -586,7 +571,7 @@ $('#sForm').onsubmit=async e=>{
   try{
     const d=await (await api('/search?q='+encodeURIComponent(q))).json();
     sResults=d.results||[];
-    $('#sHint').textContent=sResults.length?'Tap a photo to use it.':'No images found. Try different words.';
+    $('#sHint').textContent=(sResults.length?'Tap a photo to use it.':'No images found. Try different words.');
     $('#sGrid').innerHTML=sResults.map((r,i)=>`<button class="sres" data-i="${i}" style="background-image:url(&quot;${esc(r.thumb)}&quot;)"><small>${esc(r.source)}</small></button>`).join('');
   }catch(err){$('#sHint').textContent=err.message}
 };
@@ -635,7 +620,7 @@ document.querySelector('.tabbar').onclick=e=>{const t=e.target.dataset.tab;if(!t
 
 /* ---------- boot ---------- */
 (async()=>{
-  const d=new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'});$('#mDate').textContent=d;$('#nDate').textContent=d;
+  
   db=await openDB();items=await dbAll();
   items.forEach(i=>{i.wears??=[];i.tags??=[];i.colors??=[];i.seasons??=[]});
   renderCloset();
