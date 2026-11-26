@@ -150,6 +150,20 @@ input,select,textarea{font:inherit;color:inherit}
 .bar .c{width:28px;text-align:right;font-family:var(--serif);font-size:15px}
 .muted{font-family:var(--text);font-style:italic;color:var(--ink2);font-size:14px;padding:8px 0}
 .para{font-family:var(--text);font-size:15px;line-height:1.55;color:var(--ink2)}
+/* Online search */
+.findbtn{display:block;margin:-6px auto 20px;font-size:11px;letter-spacing:.22em;text-transform:uppercase;border:1px solid var(--ink);padding:10px 16px}
+.findbtn b{font-family:var(--serif);font-weight:400;font-style:italic;letter-spacing:0;text-transform:none;font-size:14px;margin-right:4px}
+.ainote{text-align:center;font-family:var(--text);font-style:italic;color:var(--accent);font-size:13px;margin:-10px 0 14px}
+.sbar{position:sticky;top:calc(var(--st) + 49px);z-index:2;background:var(--paper);display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid var(--rule)}
+.sbar input{flex:1;min-width:0;border:0;border-bottom:1px solid var(--ink);background:transparent;padding:8px 2px;font-family:var(--text);font-size:16px;outline:none;border-radius:0}
+.sbar button{background:var(--ink);color:var(--paper);font-size:11px;letter-spacing:.18em;text-transform:uppercase;padding:0 14px}
+.shint{font-family:var(--text);font-style:italic;color:var(--ink2);font-size:14px;padding:14px 18px;text-align:center}
+.sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:6px 10px 20px}
+.sres{position:relative;aspect-ratio:3/4;background:var(--paper2) center/cover no-repeat;overflow:hidden}
+.sres small{position:absolute;left:0;right:0;bottom:0;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.55));padding:14px 5px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
+.sres.busy::after{content:"Saving…";position:absolute;inset:0;background:rgba(245,241,234,.8);display:flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink)}
+.cfg input{width:100%;border:0;border-bottom:1px solid var(--ink);background:transparent;padding:8px 0;font-family:var(--text);font-size:16px;border-radius:0;outline:none;margin-bottom:14px}
+.cfg label{display:block;font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink2)}
 .toast{position:fixed;left:50%;top:calc(var(--st) + 14px);transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;font-size:12px;letter-spacing:.1em;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
 .toast.show{opacity:1}
 </style>
@@ -221,6 +235,14 @@ input,select,textarea{font:inherit;color:inherit}
       <button class="secondary" id="importBtn">Import backup</button>
       <input type="file" id="importFile" accept=".json,application/json" class="hidden">
     </div>
+    <div class="section cfg">
+      <h3>Online search</h3>
+      <p class="para">Lets you find garment photos online and have AI fill in the details. Paste the server address and access code from your setup.</p>
+      <label>Server address</label><input id="cfgUrl" type="url" placeholder="https://closet-search.yourname.workers.dev" autocomplete="off" autocapitalize="off">
+      <label>Access code</label><input id="cfgTok" type="password" placeholder="Your access code" autocomplete="off">
+      <button class="secondary" id="cfgSave">Save &amp; test</button>
+      <p class="para" id="cfgStatus"></p>
+    </div>
     <div class="section">
       <h3>Storage</h3>
       <p class="para" id="storageInfo">Checking…</p>
@@ -258,6 +280,8 @@ input,select,textarea{font:inherit;color:inherit}
   <div class="form">
     <button type="button" class="photopick" id="photoPick"><em>+</em>Add photo</button>
     <input type="file" id="photoFile" accept="image/*" class="hidden">
+    <button type="button" class="findbtn" id="findBtn"><b>or</b> Find it online</button>
+    <div class="ainote hidden" id="aiNote"></div>
     <div class="field"><label>Name</label><input id="iName" placeholder="Cream cable-knit sweater"></div>
     <div class="two">
       <div class="field"><label>Category</label><select id="iCat"></select></div>
@@ -274,6 +298,18 @@ input,select,textarea{font:inherit;color:inherit}
     <div class="field"><label>Notes</label><textarea id="iNotes" placeholder="Fabric, care, where it's from…"></textarea></div>
     <button class="danger hidden" id="fDelete">Delete this piece</button>
   </div>
+</div>
+
+<!-- SEARCH SHEET -->
+<div class="sheet" id="search">
+  <div class="sheethead">
+    <button id="sClose">Cancel</button>
+    <span class="ttl">Find online</span>
+    <span style="width:52px"></span>
+  </div>
+  <form class="sbar" id="sForm"><input id="sq" type="search" placeholder="e.g. Aritzia cream cable knit sweater" autocomplete="off" enterkeyhint="search"><button>Search</button></form>
+  <div class="shint" id="sHint">Search for the exact piece: brand + item works best. Tap a photo to use it.</div>
+  <div class="sgrid" id="sGrid"></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -408,7 +444,9 @@ function renderFormPickers(){
 }
 function setPick(url){const p=$('#photoPick');if(url){p.classList.add('has');p.style.backgroundImage=`url("${url}")`;p.innerHTML='<span>Change photo</span>'}else{p.classList.remove('has');p.style.backgroundImage='';p.innerHTML='<em>+</em>Add photo'}}
 async function openForm(id){
-  editId=id;pendingPhoto=null;const it=id?byId(id):null;
+  editId=id;pendingPhoto=null;formSession++;const it=id?byId(id):null;
+  $('#aiNote').classList.add('hidden');delete $('#iCat').dataset.touched;$('#sq').value='';$('#sGrid').innerHTML='';sResults=[];
+  $('#sHint').textContent='Search for the exact piece: brand + item works best. Tap a photo to use it.';
   $('#fTitle').textContent=it?'Edit piece':'New piece';
   $('#iName').value=it?.name||'';$('#iCat').value=it?.category||'Tops';$('#iBrand').value=it?.brand||'';
   $('#iSize').value=it?.size||'';$('#iPrice').value=it?.price??'';$('#iDate').value=it?.purchased||'';
@@ -438,7 +476,7 @@ $('#fSave').onclick=async()=>{
 };
 $('#fDelete').onclick=async()=>{const it=byId(editId);if(!it||!confirm(`Delete "${it.name}"? This can't be undone.`))return;
   await dbDel(it.id);dropURLs(it.id);items=items.filter(i=>i.id!==it.id);closeSheet('#form');closeSheet('#detail');renderCloset();toast('Deleted')};
-$('#fCancel').onclick=()=>closeSheet('#form');
+$('#fCancel').onclick=()=>{formSession++;closeSheet('#form')};
 function closeSheet(s){$(s).classList.remove('open')}
 $('#dClose').onclick=()=>closeSheet('#detail');
 $('#dEdit').onclick=()=>openForm(curId);
@@ -512,6 +550,7 @@ $('#importFile').onchange=async e=>{const f=e.target.files[0];e.target.value='';
     items=await dbAll();renderCloset();renderArchive();toast(`Imported ${n} piece${n===1?'':'s'}`);
   }catch{toast("That doesn't look like a Closet backup")}};
 async function renderArchive(){
+  const c=cfg();$('#cfgUrl').value=c.url;$('#cfgTok').value=c.token;
   const lb=localStorage.getItem('closet-last-backup');
   $('#lastBackup').textContent=lb?new Date(lb).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}):'Never — export one once you’ve added a few pieces.';
   let s=`${items.length} pieces, ${items.filter(i=>i.hasPhoto).length} with photos.`;
@@ -519,6 +558,68 @@ async function renderArchive(){
   if(navigator.storage?.persisted){s+=(await navigator.storage.persisted())?' Storage is protected from automatic clearing.':' Add the app to your Home Screen so iOS keeps your data.'}
   $('#storageInfo').textContent=s;
 }
+
+/* ---------- online search ---------- */
+const cfg=()=>({url:(localStorage.getItem('closet-srv')||'').trim().replace(/\/+$/,''),token:localStorage.getItem('closet-tok')||''});
+async function api(path,opt={}){
+  const c=cfg();if(!c.url)throw new Error('Set up online search in the Archive tab');
+  const headers={'X-App-Token':c.token};if(opt.body)headers['Content-Type']='application/json';
+  let r;try{r=await fetch(c.url+path,{...opt,headers})}catch{throw new Error("Couldn't reach the search server")}
+  if(!r.ok){let m='Error '+r.status;try{m=(await r.json()).error||m}catch{}throw new Error(m)}
+  return r;
+}
+let sResults=[],sQuery='',formSession=0;
+$('#findBtn').onclick=()=>{
+  $('#sq').value=$('#sq').value||[$('#iBrand').value,$('#iName').value].filter(Boolean).join(' ');
+  if(!cfg().url){$('#sGrid').innerHTML='';$('#sHint').innerHTML='Online search isn’t set up yet. Add your server address and access code in the <b>Archive</b> tab.'}
+  $('#search').scrollTop=0;$('#search').classList.add('open');
+  if(cfg().url&&!$('#sq').value)setTimeout(()=>$('#sq').focus(),300);
+};
+$('#sClose').onclick=()=>closeSheet('#search');
+$('#sForm').onsubmit=async e=>{
+  e.preventDefault();const q=$('#sq').value.trim();if(!q)return;$('#sq').blur();
+  sQuery=q;$('#sHint').textContent='Searching…';$('#sGrid').innerHTML='';
+  try{
+    const d=await (await api('/search?q='+encodeURIComponent(q))).json();
+    sResults=d.results||[];
+    $('#sHint').textContent=sResults.length?'Tap a photo to use it.':'No images found. Try different words.';
+    $('#sGrid').innerHTML=sResults.map((r,i)=>`<button class="sres" data-i="${i}" style="background-image:url(&quot;${esc(r.thumb)}&quot;)"><small>${esc(r.source)}</small></button>`).join('');
+  }catch(err){$('#sHint').textContent=err.message}
+};
+$('#sGrid').onclick=async e=>{
+  const b=e.target.closest('.sres');if(!b||document.querySelector('.sres.busy'))return;
+  const r=sResults[+b.dataset.i];b.classList.add('busy');const session=formSession;
+  let blob=null;
+  for(const u of [r.image,r.thumb]){try{blob=await (await api('/image?url='+encodeURIComponent(u))).blob();const ou=URL.createObjectURL(blob);try{pendingPhoto=await makePhotos(ou)}finally{URL.revokeObjectURL(ou)}break}catch{blob=null}}
+  b.classList.remove('busy');
+  if(!blob)return toast('That photo couldn’t be saved. Try another.');
+  if(session!==formSession)return;
+  setPick(URL.createObjectURL(pendingPhoto.full));closeSheet('#search');
+  autofill(r,session);
+};
+async function autofill(r,session){
+  const note=$('#aiNote');note.textContent='AI is filling in the details…';note.classList.remove('hidden');
+  try{
+    const d=await (await api('/describe',{method:'POST',body:JSON.stringify({imageUrl:r.thumb,title:r.title,source:r.source,query:sQuery,categories:CATS,colors:Object.keys(COLORS),seasons:SEASONS})})).json();
+    if(session!==formSession)return;
+    const filled=[];
+    const setIf=(sel,v)=>{v=String(v||'').trim();if(v&&!$(sel).value.trim()){$(sel).value=v;filled.push(sel)}};
+    setIf('#iName',d.name);setIf('#iBrand',d.brand);
+    if(CATS.includes(d.category)&&(!editId||!$('#iCat').dataset.touched)){$('#iCat').value=d.category;filled.push('cat')}
+    const cols=(d.colors||[]).filter(c=>COLORS[c]);if(cols.length&&!formColors.size){formColors=new Set(cols);filled.push('col')}
+    const sea=(d.seasons||[]).filter(s=>SEASONS.includes(s));if(sea.length&&!formSeasons.size){formSeasons=new Set(sea);filled.push('sea')}
+    const tags=(d.tags||[]).map(t=>String(t).toLowerCase().trim()).filter(Boolean).slice(0,4);if(tags.length&&!$('#iTags').value.trim()){$('#iTags').value=tags.join(', ');filled.push('tags')}
+    renderFormPickers();
+    note.textContent=filled.length?'Details filled in by AI. Check them before saving.':'Photo added.';
+  }catch(err){if(session===formSession)note.textContent='Photo added. AI couldn’t fill in details ('+err.message+').'}
+}
+$('#iCat').onchange=()=>{$('#iCat').dataset.touched='1'};
+$('#cfgSave').onclick=async()=>{
+  localStorage.setItem('closet-srv',$('#cfgUrl').value.trim());localStorage.setItem('closet-tok',$('#cfgTok').value.trim());
+  const st=$('#cfgStatus');st.textContent='Testing…';
+  try{const d=await (await api('/ping')).json();st.textContent=d.search?(d.ai?'Connected. Search and AI autofill are ready.':'Connected. Search works, but the AI key is missing on the server.'):'Connected, but the Brave search key is missing on the server.'}
+  catch(err){st.textContent=err.message}
+};
 
 /* ---------- tabs ---------- */
 document.querySelector('.tabbar').onclick=e=>{const t=e.target.dataset.tab;if(!t)return;
