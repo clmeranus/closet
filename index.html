@@ -123,6 +123,21 @@ input,select,textarea{font:inherit;color:inherit}
 .field input,.field select,.field textarea{width:100%;border:0;border-bottom:1px solid var(--ink);background:transparent;padding:8px 0;font-family:var(--text);font-size:17px;border-radius:0;outline:none;-webkit-appearance:none;appearance:none}
 .field textarea{min-height:70px;resize:vertical}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.logbox{border-top:1px solid var(--ink);margin:22px 0 18px;padding-top:4px}
+.logbox h3{font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--ink2);font-weight:600;margin:10px 0 14px}
+.step{display:flex;align-items:center;border:1px solid var(--rule);background:var(--card)}
+.step button{width:42px;height:42px;font-size:20px;color:var(--ink)}
+.field .step input{border:0;text-align:center;padding:8px 0;font-size:18px;font-weight:500;-moz-appearance:textfield}
+.step input::-webkit-outer-spin-button,.step input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.lnote{font-size:12px;color:var(--ink2);margin:-6px 0 14px;line-height:1.4}
+.field .logrow{margin-top:0}
+.field .logrow input{border:1px solid var(--rule);background:var(--card);padding:10px;font-size:15px}
+.washlist li{padding:7px 0}
+.stats3{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--ink);margin:-18px 0 18px}
+.stats3 div{padding:12px 4px;text-align:center;border-right:1px solid var(--rule)}
+.stats3 div:last-child{border-right:0}
+.stats3 b{display:block;font-weight:500;font-size:17px}
+.stats3 span{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink2)}
 .danger{color:var(--accent);font-size:11px;letter-spacing:.2em;text-transform:uppercase;display:block;margin:28px auto 0;padding:10px}
 
 /* Numbers */
@@ -280,6 +295,18 @@ input,select,textarea{font:inherit;color:inherit}
     <div class="field"><label>Colour</label><div class="row" id="iColors"></div></div>
     <div class="field"><label>Season</label><div class="row" id="iSeasons"></div></div>
     <div class="field"><label>Tags <span style="text-transform:none;letter-spacing:0">(comma separated)</span></label><input id="iTags" placeholder="vintage, work, favourite"></div>
+    <div class="logbox">
+      <h3>Wear &amp; wash log</h3>
+      <div class="two">
+        <div class="field"><label>Times worn</label><div class="step"><button type="button" data-step="iWears" data-d="-1" aria-label="Less">−</button><input id="iWears" type="number" inputmode="numeric" min="0" step="1" value="0"><button type="button" data-step="iWears" data-d="1" aria-label="More">+</button></div></div>
+        <div class="field"><label>Times washed</label><div class="step"><button type="button" data-step="iWashes" data-d="-1" aria-label="Less">−</button><input id="iWashes" type="number" inputmode="numeric" min="0" step="1" value="0"><button type="button" data-step="iWashes" data-d="1" aria-label="More">+</button></div></div>
+      </div>
+      <p class="lnote" id="wearNote"></p>
+      <div class="field"><label>Wash dates</label>
+        <div class="logrow"><input type="date" id="iWashDate"><button type="button" id="addWash">Add</button></div>
+        <ul class="wears washlist" id="washList"></ul>
+      </div>
+    </div>
     <div class="field"><label>Notes</label><textarea id="iNotes" placeholder="Fabric, care, where it's from…"></textarea></div>
     <button class="danger hidden" id="fDelete">Delete this piece</button>
   </div>
@@ -313,7 +340,11 @@ const daysSince=s=>Math.round((parseD(today())-parseD(s))/864e5);
 const fmtD=s=>parseD(s).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 const ago=s=>{const n=daysSince(s);return n===0?'Today':n===1?'Yesterday':n<7?n+' days ago':n<60?Math.round(n/7)+' wk ago':Math.round(n/30)+' mo ago'};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-const cpw=it=>it.price>0&&it.wears.length?it.price/it.wears.length:null;
+const wc=it=>it.wears.length+(it.pastWears||0);
+const wsc=it=>(it.washes||[]).length+(it.pastWashes||0);
+const lastWash=it=>(it.washes||[]).length?it.washes.reduce((a,b)=>a>b?a:b):null;
+const wearsSinceWash=it=>{const lw=lastWash(it);return lw?it.wears.filter(w=>w>lw).length:null};
+const cpw=it=>it.price>0&&wc(it)?it.price/wc(it):null;
 const lastWorn=it=>it.wears.length?it.wears.reduce((a,b)=>a>b?a:b):null;
 function toast(t){const el=$('#toast');el.textContent=t;el.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),1800)}
 
@@ -351,7 +382,7 @@ function filtered(){
     if(F.tags.size&&!it.tags.some(t=>F.tags.has(t)))return false;
     if(q){const hay=[it.name,it.brand,it.category,it.size,it.notes,...it.tags,...it.colors].join(' ').toLowerCase();if(!q.split(/\s+/).every(w=>hay.includes(w)))return false}
     return true});
-  const S={new:(a,b)=>b.created-a.created,worn:(a,b)=>b.wears.length-a.wears.length,least:(a,b)=>a.wears.length-b.wears.length,
+  const S={new:(a,b)=>b.created-a.created,worn:(a,b)=>wc(b)-wc(a),least:(a,b)=>wc(a)-wc(b),
     recent:(a,b)=>(lastWorn(b)||'').localeCompare(lastWorn(a)||''),cpw:(a,b)=>(cpw(a)??1e9)-(cpw(b)??1e9),
     price:(a,b)=>(b.price||0)-(a.price||0),az:(a,b)=>a.name.localeCompare(b.name)};
   return l.sort(S[F.sort]);
@@ -381,7 +412,7 @@ function renderCloset(){
   if(!items.length){g.innerHTML='';e.classList.remove('hidden');e.innerHTML='<h2>An empty closet</h2><p>Tap + to add your first piece.</p>';return}
   if(!l.length){g.innerHTML='';e.classList.remove('hidden');e.innerHTML='<h2>Nothing here</h2><p>No pieces match those filters.</p>';return}
   e.classList.add('hidden');
-  g.innerHTML=l.map(it=>{const c=cpw(it);return`<button class="card" data-id="${it.id}"><div class="ph" data-ph="${it.hasPhoto?it.id:''}">${it.hasPhoto?'':esc(it.name[0]||'·')}</div><div class="meta"><div class="brand">${esc(it.brand||it.category)}</div><div class="nm">${esc(it.name)}</div><div class="sub">${it.wears.length} wear${it.wears.length===1?'':'s'}${c!=null?' · '+money(c)+'/wear':''}</div></div></button>`}).join('');
+  g.innerHTML=l.map(it=>{const c=cpw(it);return`<button class="card" data-id="${it.id}"><div class="ph" data-ph="${it.hasPhoto?it.id:''}">${it.hasPhoto?'':esc(it.name[0]||'·')}</div><div class="meta"><div class="brand">${esc(it.brand||it.category)}</div><div class="nm">${esc(it.name)}</div><div class="sub">${wc(it)} wear${wc(it)===1?'':'s'}${c!=null?' · '+money(c)+'/wear':''}</div></div></button>`}).join('');
   g.querySelectorAll('[data-ph]').forEach(el=>paint(el,el.dataset.ph,true));
 }
 
@@ -400,16 +431,22 @@ function renderDetail(){
     <h2>${esc(it.name)}</h2>
     <div class="facts">${esc(facts)}${it.colors.length?`<span class="dots">${it.colors.map(n=>`<i style="background:${COLORS[n]}" title="${n}"></i>`).join('')}</span>`:''}</div>
     <div class="stats4">
-      <div><b>${it.wears.length}</b><span>Wears</span></div>
+      <div><b>${wc(it)}</b><span>Wears</span></div>
       <div><b>${money(it.price)}</b><span>Price</span></div>
       <div><b>${c!=null?money(c):'—'}</b><span>Per wear</span></div>
       <div><b style="font-size:16px;line-height:26px">${lw?ago(lw):'Never'}</b><span>Last worn</span></div>
     </div>
+    <div class="stats3">
+      <div><b>${wsc(it)}</b><span>Washes</span></div>
+      <div><b>${lastWash(it)?ago(lastWash(it)):'—'}</b><span>Last washed</span></div>
+      <div><b>${wearsSinceWash(it)??'—'}</b><span>Wears since</span></div>
+    </div>
     <button class="primary ${wornToday?'done':''}" id="woreBtn">${wornToday?'Worn today ✓':'Wore it today'}</button>
     <div class="logrow"><input type="date" id="logDate" max="${today()}" value="${today()}"><button id="logBtn">Log date</button></div>
+    <button class="secondary" id="washBtn">${(it.washes||[]).includes(today())?'Washed today ✓':'Washed it today'}</button>
     ${it.seasons.length||it.tags.length?`<div class="tags">${it.seasons.map(s=>`<span class="tag">${s}</span>`).join('')}${it.tags.map(t=>`<span class="tag">#${esc(t)}</span>`).join('')}</div>`:''}
     ${it.notes?`<div class="section"><h3>Notes</h3><div class="notes">${esc(it.notes)}</div></div>`:''}
-    <div class="section"><h3>Wear log</h3>${wears.length?`<ul class="wears">${wears.map(([d,i])=>`<li>${fmtD(d)}<button data-rm="${i}" aria-label="Remove">×</button></li>`).join('')}</ul>`:'<div class="muted">Not worn yet.</div>'}</div>
+    <div class="section"><h3>Wear log</h3>${wears.length?(it.pastWears?`<div class="muted">Plus ${it.pastWears} earlier wear${it.pastWears===1?'':'s'} without dates.</div>`:'')+`<ul class="wears">${wears.map(([d,i])=>`<li>${fmtD(d)}<button data-rm="${i}" aria-label="Remove">×</button></li>`).join('')}</ul>`:(wc(it)?`<div class="muted">${wc(it)} wear${wc(it)===1?'':'s'}, no dates logged.</div>`:'<div class="muted">Not worn yet.</div>')}</div>
    </div>`;
   if(it.hasPhoto)paint($('#dHero'),it.id,false);
 }
@@ -417,11 +454,35 @@ async function addWear(d){const it=byId(curId);if(!d)return;it.wears.push(d);it.
 $('#dContent').addEventListener('click',async e=>{
   if(e.target.id==='woreBtn'){const it=byId(curId);if(it.wears.includes(today())){toast('Already logged today')}else addWear(today())}
   else if(e.target.id==='logBtn'){const d=$('#logDate').value;if(d>today())return toast('That date is in the future');addWear(d)}
+  else if(e.target.id==='washBtn'){const it=byId(curId);it.washes??=[];if(it.washes.includes(today()))return toast('Already logged today');it.washes.push(today());it.updated=Date.now();await dbPut(it);renderDetail();toast('Wash logged')}
   else if(e.target.dataset.rm!=null){const it=byId(curId);it.wears.splice(+e.target.dataset.rm,1);await dbPut(it);renderDetail();renderCloset()}
 });
 
 /* ---------- form ---------- */
-let editId=null,pendingPhoto=null,formColors=new Set(),formSeasons=new Set();
+let editId=null,pendingPhoto=null,formColors=new Set(),formSeasons=new Set(),fWashDates=[],fDatedWears=0;
+const intVal=sel=>{const v=parseInt($(sel).value,10);return isNaN(v)?0:Math.max(0,v)};
+function renderWashList(){
+  fWashDates.sort((a,b)=>b.localeCompare(a));
+  const html=fWashDates.map((d,i)=>`<li>${fmtD(d)}<button type="button" data-rmwash="${i}" aria-label="Remove">×</button></li>`).join('');
+  if($('#washList').innerHTML!==html)$('#washList').innerHTML=html;
+  const notes=[];
+  if(fDatedWears)notes.push(`Includes ${fDatedWears} dated wear${fDatedWears===1?'':'s'} logged with “Wore it today”.`);
+  if(fWashDates.length&&intVal('#iWashes')>fWashDates.length)notes.push(`${intVal('#iWashes')-fWashDates.length} wash${intVal('#iWashes')-fWashDates.length===1?'':'es'} without a date.`);
+  $('#wearNote').textContent=notes.join(' ');$('#wearNote').classList.toggle('hidden',!notes.length);
+}
+function clampCounts(){
+  if(intVal('#iWears')<fDatedWears)$('#iWears').value=fDatedWears;else $('#iWears').value=intVal('#iWears');
+  if(intVal('#iWashes')<fWashDates.length)$('#iWashes').value=fWashDates.length;else $('#iWashes').value=intVal('#iWashes');
+  renderWashList();
+}
+$('#form').addEventListener('click',e=>{
+  const st=e.target.closest('[data-step]');
+  if(st){const el=$('#'+st.dataset.step);el.value=Math.max(0,intVal('#'+st.dataset.step)+(+st.dataset.d));clampCounts();return}
+  const rm=e.target.closest('[data-rmwash]');if(rm){fWashDates.splice(+rm.dataset.rmwash,1);$('#iWashes').value=Math.max(fWashDates.length,intVal('#iWashes')-1);clampCounts()}
+});
+['#iWears','#iWashes'].forEach(s=>$(s).addEventListener('change',clampCounts));
+$('#addWash').onclick=()=>{const d=$('#iWashDate').value;if(!d)return toast('Pick a date first');if(d>today())return toast('That date is in the future');
+  if(fWashDates.includes(d))return toast('Already logged');fWashDates.push(d);$('#iWashDate').value='';clampCounts()};
 $('#iCat').innerHTML=CATS.map(c=>`<option>${c}</option>`).join('');
 function renderFormPickers(){
   $('#iColors').innerHTML=Object.entries(COLORS).map(([n,v])=>`<button type="button" class="sw ${formColors.has(n)?'on':''}" data-col="${n}" title="${n}" style="background:${v}"></button>`).join('');
@@ -437,6 +498,8 @@ async function openForm(id){
   $('#iSize').value=it?.size||'';$('#iPrice').value=it?.price??'';$('#iDate').value=it?.purchased||'';
   $('#iTags').value=it?.tags.join(', ')||'';$('#iNotes').value=it?.notes||'';
   formColors=new Set(it?.colors||[]);formSeasons=new Set(it?.seasons||[]);renderFormPickers();
+  fWashDates=[...(it?.washes||[])];fDatedWears=it?.wears.length||0;
+  $('#iWears').value=it?wc(it):0;$('#iWashes').value=it?wsc(it):0;$('#iWashDate').value='';$('#iWashDate').max=today();clampCounts();
   $('#brandList').innerHTML=[...new Set(items.map(i=>i.brand).filter(Boolean))].sort().map(b=>`<option value="${esc(b)}">`).join('');
   setPick(it?.hasPhoto?await photoURL(it.id,false):null);
   $('#fDelete').classList.toggle('hidden',!it);
@@ -453,7 +516,9 @@ $('#fSave').onclick=async()=>{
   const it={id:old?.id||uid(),name,category:$('#iCat').value,brand:$('#iBrand').value.trim(),size:$('#iSize').value.trim(),
     price:isNaN(price)?null:price,purchased:$('#iDate').value||'',colors:[...formColors],seasons:[...formSeasons],
     tags:[...new Set($('#iTags').value.split(',').map(t=>t.trim().toLowerCase()).filter(Boolean))],notes:$('#iNotes').value.trim(),
-    wears:old?.wears||[],created:old?.created||Date.now(),updated:Date.now(),hasPhoto:old?.hasPhoto||false};
+    wears:old?.wears||[],pastWears:Math.max(0,intVal('#iWears')-(old?.wears.length||0)),
+    washes:[...fWashDates],pastWashes:Math.max(0,intVal('#iWashes')-fWashDates.length),
+    created:old?.created||Date.now(),updated:Date.now(),hasPhoto:old?.hasPhoto||false};
   if(pendingPhoto){await phPut(it.id,pendingPhoto.full);await phPut(it.id+':t',pendingPhoto.thumb);dropURLs(it.id);it.hasPhoto=true}
   await dbPut(it);
   if(old)Object.assign(old,it);else items.push(it);
@@ -482,15 +547,15 @@ $('#filterPanel').onclick=e=>{const d=e.target.dataset;
 function renderNumbers(){
   const el=$('#numbers');
   if(!items.length){el.innerHTML='<div class="empty"><h2>No numbers yet</h2><p>Add pieces and log wears to see your stats.</p></div>';return}
-  const value=items.reduce((s,i)=>s+(i.price||0),0),wears=items.reduce((s,i)=>s+i.wears.length,0);
-  const priced=items.filter(i=>i.price>0&&i.wears.length);
-  const avg=priced.length?priced.reduce((s,i)=>s+i.price,0)/priced.reduce((s,i)=>s+i.wears.length,0):null;
+  const value=items.reduce((s,i)=>s+(i.price||0),0),wears=items.reduce((s,i)=>s+wc(i),0);
+  const priced=items.filter(i=>i.price>0&&wc(i));
+  const avg=priced.length?priced.reduce((s,i)=>s+i.price,0)/priced.reduce((s,i)=>s+wc(i),0):null;
   const since=d=>items.reduce((s,i)=>s+i.wears.filter(w=>daysSince(w)<d).length,0);
   const row=(it,i,v,sub)=>`<li data-id="${it.id}"><span class="n">${i+1}</span><div class="th" data-ph="${it.hasPhoto?it.id:''}">${it.hasPhoto?'':esc(it.name[0])}</div><div class="t"><div>${esc(it.name)}</div><div class="brand">${esc(sub)}</div></div><div class="v">${v}</div></li>`;
-  const most=[...items].filter(i=>i.wears.length).sort((a,b)=>b.wears.length-a.wears.length).slice(0,5);
+  const most=[...items].filter(i=>wc(i)).sort((a,b)=>wc(b)-wc(a)).slice(0,5);
   const best=[...priced].sort((a,b)=>cpw(a)-cpw(b)).slice(0,5);
   const worst=[...items].filter(i=>i.price>0).sort((a,b)=>(cpw(b)??b.price)-(cpw(a)??a.price)).slice(0,5);
-  const forgotten=items.filter(i=>{const l=lastWorn(i);return !l||daysSince(l)>=90}).sort((a,b)=>(lastWorn(a)||'').localeCompare(lastWorn(b)||'')).slice(0,8);
+  const forgotten=items.filter(i=>{const l=lastWorn(i);return l?daysSince(l)>=90:!wc(i)}).sort((a,b)=>(lastWorn(a)||'').localeCompare(lastWorn(b)||'')).slice(0,8);
   const cc={};items.forEach(i=>cc[i.category]=(cc[i.category]||0)+1);const maxc=Math.max(...Object.values(cc));
   el.innerHTML=`
    <div class="big4">
@@ -499,9 +564,9 @@ function renderNumbers(){
     <div><b>${wears}</b><span>Wears · ${since(30)} in 30 days</span></div>
     <div><b>${avg!=null?money(avg):'—'}</b><span>Avg cost / wear</span></div>
    </div>
-   <div class="section"><h3>Most worn</h3>${most.length?`<ul class="rank">${most.map((it,i)=>row(it,i,it.wears.length+'×',it.brand||it.category)).join('')}</ul>`:'<div class="muted">Log some wears to see favourites.</div>'}</div>
-   <div class="section"><h3>Best value</h3>${best.length?`<ul class="rank">${best.map((it,i)=>row(it,i,money(cpw(it)),it.wears.length+' wears')).join('')}</ul>`:'<div class="muted">Add prices and log wears to see cost per wear.</div>'}</div>
-   <div class="section"><h3>Costliest per wear</h3>${worst.length?`<ul class="rank">${worst.map((it,i)=>row(it,i,money(cpw(it)??it.price),it.wears.length?it.wears.length+' wears':'never worn')).join('')}</ul>`:'<div class="muted">Add prices to see this.</div>'}</div>
+   <div class="section"><h3>Most worn</h3>${most.length?`<ul class="rank">${most.map((it,i)=>row(it,i,wc(it)+'×',it.brand||it.category)).join('')}</ul>`:'<div class="muted">Log some wears to see favourites.</div>'}</div>
+   <div class="section"><h3>Best value</h3>${best.length?`<ul class="rank">${best.map((it,i)=>row(it,i,money(cpw(it)),wc(it)+' wears')).join('')}</ul>`:'<div class="muted">Add prices and log wears to see cost per wear.</div>'}</div>
+   <div class="section"><h3>Costliest per wear</h3>${worst.length?`<ul class="rank">${worst.map((it,i)=>row(it,i,money(cpw(it)??it.price),wc(it)?wc(it)+' wears':'never worn')).join('')}</ul>`:'<div class="muted">Add prices to see this.</div>'}</div>
    <div class="section"><h3>Forgotten · 90+ days</h3>${forgotten.length?`<ul class="rank">${forgotten.map((it,i)=>row(it,i,lastWorn(it)?ago(lastWorn(it)):'Never',it.brand||it.category)).join('')}</ul>`:'<div class="muted">You’ve worn everything recently. Impressive.</div>'}</div>
    <div class="section"><h3>By category</h3>${Object.entries(cc).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`<div class="bar"><span class="l">${c}</span><span class="b"><i style="width:${n/maxc*100}%"></i></span><span class="c">${n}</span></div>`).join('')}</div>`;
   el.querySelectorAll('[data-ph]').forEach(x=>paint(x,x.dataset.ph,true));
@@ -527,7 +592,7 @@ $('#importFile').onchange=async e=>{const f=e.target.files[0];e.target.value='';
     let n=0;for(const it of d.items){
       const clean={id:String(it.id),name:String(it.name||'Untitled'),category:CATS.includes(it.category)?it.category:'Other',brand:String(it.brand||''),size:String(it.size||''),
         price:typeof it.price==='number'?it.price:null,purchased:String(it.purchased||''),colors:(it.colors||[]).filter(c=>COLORS[c]),seasons:(it.seasons||[]).filter(s=>SEASONS.includes(s)),
-        tags:(it.tags||[]).map(String),notes:String(it.notes||''),wears:(it.wears||[]).filter(w=>/^\d{4}-\d\d-\d\d$/.test(w)),created:+it.created||Date.now(),updated:+it.updated||Date.now(),hasPhoto:false};
+        tags:(it.tags||[]).map(String),notes:String(it.notes||''),wears:(it.wears||[]).filter(w=>/^\d{4}-\d\d-\d\d$/.test(w)),washes:(it.washes||[]).filter(w=>/^\d{4}-\d\d-\d\d$/.test(w)),pastWears:Math.max(0,+it.pastWears||0),pastWashes:Math.max(0,+it.pastWashes||0),created:+it.created||Date.now(),updated:+it.updated||Date.now(),hasPhoto:false};
       const src=d.photos?.[clean.id];
       if(src&&/^data:image\//.test(src)){try{const p=await makePhotos(src);await phPut(clean.id,p.full);await phPut(clean.id+':t',p.thumb);dropURLs(clean.id);clean.hasPhoto=true}catch{}}
       else{const ex=byId(clean.id);if(ex?.hasPhoto)clean.hasPhoto=true}
@@ -622,7 +687,7 @@ document.querySelector('.tabbar').onclick=e=>{const t=e.target.dataset.tab;if(!t
 (async()=>{
   
   db=await openDB();items=await dbAll();
-  items.forEach(i=>{i.wears??=[];i.tags??=[];i.colors??=[];i.seasons??=[]});
+  items.forEach(i=>{i.wears??=[];i.washes??=[];i.pastWears??=0;i.pastWashes??=0;i.tags??=[];i.colors??=[];i.seasons??=[]});
   renderCloset();
   if(navigator.storage?.persist)navigator.storage.persist().catch(()=>{});
   if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
