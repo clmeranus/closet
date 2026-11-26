@@ -560,12 +560,16 @@ async function renderArchive(){
 }
 
 /* ---------- online search ---------- */
-const cfg=()=>({url:(localStorage.getItem('closet-srv')||'').trim().replace(/\/+$/,''),token:localStorage.getItem('closet-tok')||''});
+function cleanUrl(raw){raw=(raw||'').trim();if(!raw)return '';if(!/^https?:\/\//i.test(raw))raw='https://'+raw;try{return new URL(raw).origin}catch{return raw.replace(/\/+$/,'')}}
+const cfg=()=>({url:cleanUrl(localStorage.getItem('closet-srv')),token:(localStorage.getItem('closet-tok')||'').trim()});
 async function api(path,opt={}){
   const c=cfg();if(!c.url)throw new Error('Set up online search in the Archive tab');
   const headers={'X-App-Token':c.token};if(opt.body)headers['Content-Type']='application/json';
   let r;try{r=await fetch(c.url+path,{...opt,headers})}catch{throw new Error("Couldn't reach the search server")}
-  if(!r.ok){let m='Error '+r.status;try{m=(await r.json()).error||m}catch{}throw new Error(m)}
+  if(!r.ok){let m=null;try{m=(await r.json()).error}catch{}
+    if(!m)m=r.status===404?'No search server found at that address (404). Check the address in Archive: it should look like https://closet-search.yourname.workers.dev':'Server error '+r.status;
+    else if(m==='Not found')m='The server answered but doesn’t have the Closet code yet. Paste worker.js into the worker and click Deploy.';
+    throw new Error(m)}
   return r;
 }
 let sResults=[],sQuery='',formSession=0;
@@ -615,9 +619,11 @@ async function autofill(r,session){
 }
 $('#iCat').onchange=()=>{$('#iCat').dataset.touched='1'};
 $('#cfgSave').onclick=async()=>{
-  localStorage.setItem('closet-srv',$('#cfgUrl').value.trim());localStorage.setItem('closet-tok',$('#cfgTok').value.trim());
+  const u=cleanUrl($('#cfgUrl').value);
+  if(/dash\.cloudflare\.com/i.test(u)){$('#cfgStatus').textContent='That’s the Cloudflare dashboard link. Use the worker’s own address, ending in .workers.dev';return}
+  $('#cfgUrl').value=u;localStorage.setItem('closet-srv',u);localStorage.setItem('closet-tok',$('#cfgTok').value.trim());
   const st=$('#cfgStatus');st.textContent='Testing…';
-  try{const d=await (await api('/ping')).json();st.textContent=d.search?(d.ai?'Connected. Search and AI autofill are ready.':'Connected. Search works, but the AI key is missing on the server.'):'Connected, but the Brave search key is missing on the server.'}
+  try{const r=await api('/ping');let d;try{d=await r.clone().json()}catch{throw new Error('Something answered, but it isn\u2019t the Closet server yet. Paste worker.js into the worker and click Deploy.')}st.textContent=d.search?(d.ai?'Connected. Search and AI autofill are ready.':'Connected. Search works, but the AI key is missing on the server.'):'Connected, but the Brave search key is missing on the server.'}
   catch(err){st.textContent=err.message}
 };
 
