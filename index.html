@@ -124,6 +124,11 @@ input,select,textarea{font:inherit;color:inherit}
 .field textarea{min-height:70px;resize:vertical}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .logbox{border-top:1px solid var(--ink);margin:22px 0 18px;padding-top:4px}
+.loghead{display:flex;align-items:center;justify-content:space-between}
+.switch{width:46px;height:28px;border-radius:14px;background:var(--rule);position:relative;transition:background .2s;flex:none}
+.switch i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+.switch[aria-checked="true"]{background:var(--ink)}
+.switch[aria-checked="true"] i{transform:translateX(18px)}
 .logbox h3{font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--ink2);font-weight:600;margin:10px 0 14px}
 .step{display:flex;align-items:center;border:1px solid var(--rule);background:var(--card)}
 .step button{width:42px;height:42px;font-size:20px;color:var(--ink)}
@@ -132,11 +137,16 @@ input,select,textarea{font:inherit;color:inherit}
 .lnote{font-size:12px;color:var(--ink2);margin:-6px 0 14px;line-height:1.4}
 .field .logrow{margin-top:0}
 .field .logrow input{border:1px solid var(--rule);background:var(--card);padding:10px;font-size:15px}
-.washlist li{padding:7px 0}
-.stats3{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--ink);margin:-18px 0 18px}
+.washlist li{padding:7px 0;gap:10px}
+.washlist li span{flex:1}
+.field .washlist li label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink2);letter-spacing:0;text-transform:none;margin:0}
+.washlist li input{width:52px;border:1px solid var(--rule);background:var(--card);padding:5px 6px;text-align:center;font-size:15px;border-radius:0}
+.field .washrow #iWashW{flex:0 0 88px;text-align:center}
+.stats3{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--ink);margin:-18px 0 18px}
 .stats3 div{padding:12px 4px;text-align:center;border-right:1px solid var(--rule)}
 .stats3 div:last-child{border-right:0}
-.stats3 b{display:block;font-weight:500;font-size:17px}
+.stats3 b{display:block;font-weight:500;font-size:16px}
+.stats3 span{letter-spacing:.12em!important}
 .stats3 span{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink2)}
 .danger{color:var(--accent);font-size:11px;letter-spacing:.2em;text-transform:uppercase;display:block;margin:28px auto 0;padding:10px}
 
@@ -296,15 +306,17 @@ input,select,textarea{font:inherit;color:inherit}
     <div class="field"><label>Season</label><div class="row" id="iSeasons"></div></div>
     <div class="field"><label>Tags <span style="text-transform:none;letter-spacing:0">(comma separated)</span></label><input id="iTags" placeholder="vintage, work, favourite"></div>
     <div class="logbox">
-      <h3>Wear &amp; wash log</h3>
+      <div class="loghead"><h3>Wear &amp; wash log</h3><button type="button" class="switch" id="logToggle" role="switch" aria-checked="true" aria-label="Show wear and wash log"><i></i></button></div>
+      <div id="logBody">
       <div class="two">
         <div class="field"><label>Times worn</label><div class="step"><button type="button" data-step="iWears" data-d="-1" aria-label="Less">−</button><input id="iWears" type="number" inputmode="numeric" min="0" step="1" value="0"><button type="button" data-step="iWears" data-d="1" aria-label="More">+</button></div></div>
         <div class="field"><label>Times washed</label><div class="step"><button type="button" data-step="iWashes" data-d="-1" aria-label="Less">−</button><input id="iWashes" type="number" inputmode="numeric" min="0" step="1" value="0"><button type="button" data-step="iWashes" data-d="1" aria-label="More">+</button></div></div>
       </div>
       <p class="lnote" id="wearNote"></p>
       <div class="field"><label>Wash dates</label>
-        <div class="logrow"><input type="date" id="iWashDate"><button type="button" id="addWash">Add</button></div>
+        <div class="logrow washrow"><input type="date" id="iWashDate"><input type="number" id="iWashW" inputmode="numeric" min="0" step="1" placeholder="# wears"><button type="button" id="addWash">Add</button></div>
         <ul class="wears washlist" id="washList"></ul>
+      </div>
       </div>
     </div>
     <div class="field"><label>Notes</label><textarea id="iNotes" placeholder="Fabric, care, where it's from…"></textarea></div>
@@ -342,7 +354,11 @@ const ago=s=>{const n=daysSince(s);return n===0?'Today':n===1?'Yesterday':n<7?n+
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const wc=it=>it.wears.length+(it.pastWears||0);
 const wsc=it=>(it.washes||[]).length+(it.pastWashes||0);
-const lastWash=it=>(it.washes||[]).length?it.washes.reduce((a,b)=>a>b?a:b):null;
+const normWash=x=>typeof x==='string'?{d:x,w:null}:(x&&/^\d{4}-\d\d-\d\d$/.test(x.d)?{d:x.d,w:Number.isFinite(+x.w)&&x.w!==null&&x.w!==''?Math.max(0,Math.round(+x.w)):null}:null);
+const lastWash=it=>(it.washes||[]).length?it.washes.map(x=>x.d).reduce((a,b)=>a>b?a:b):null;
+// dated wears between the previous wash (exclusive) and this date (inclusive)
+const wearsBefore=(wears,washDates,d)=>{const prev=washDates.filter(x=>x<d).sort().pop()||'';return wears.filter(w=>w>prev&&w<=d).length};
+const avgWearsPerWash=it=>{const v=(it.washes||[]).map(x=>x.w).filter(w=>w!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null};
 const wearsSinceWash=it=>{const lw=lastWash(it);return lw?it.wears.filter(w=>w>lw).length:null};
 const cpw=it=>it.price>0&&wc(it)?it.price/wc(it):null;
 const lastWorn=it=>it.wears.length?it.wears.reduce((a,b)=>a>b?a:b):null;
@@ -440,10 +456,11 @@ function renderDetail(){
       <div><b>${wsc(it)}</b><span>Washes</span></div>
       <div><b>${lastWash(it)?ago(lastWash(it)):'—'}</b><span>Last washed</span></div>
       <div><b>${wearsSinceWash(it)??'—'}</b><span>Wears since</span></div>
+      <div><b>${avgWearsPerWash(it)!=null?(+avgWearsPerWash(it).toFixed(1)):'—'}</b><span>Wears / wash</span></div>
     </div>
     <button class="primary ${wornToday?'done':''}" id="woreBtn">${wornToday?'Worn today ✓':'Wore it today'}</button>
     <div class="logrow"><input type="date" id="logDate" max="${today()}" value="${today()}"><button id="logBtn">Log date</button></div>
-    <button class="secondary" id="washBtn">${(it.washes||[]).includes(today())?'Washed today ✓':'Washed it today'}</button>
+    <button class="secondary" id="washBtn">${(it.washes||[]).some(x=>x.d===today())?'Washed today ✓':'Washed it today'}</button>
     ${it.seasons.length||it.tags.length?`<div class="tags">${it.seasons.map(s=>`<span class="tag">${s}</span>`).join('')}${it.tags.map(t=>`<span class="tag">#${esc(t)}</span>`).join('')}</div>`:''}
     ${it.notes?`<div class="section"><h3>Notes</h3><div class="notes">${esc(it.notes)}</div></div>`:''}
     <div class="section"><h3>Wear log</h3>${wears.length?(it.pastWears?`<div class="muted">Plus ${it.pastWears} earlier wear${it.pastWears===1?'':'s'} without dates.</div>`:'')+`<ul class="wears">${wears.map(([d,i])=>`<li>${fmtD(d)}<button data-rm="${i}" aria-label="Remove">×</button></li>`).join('')}</ul>`:(wc(it)?`<div class="muted">${wc(it)} wear${wc(it)===1?'':'s'}, no dates logged.</div>`:'<div class="muted">Not worn yet.</div>')}</div>
@@ -454,7 +471,7 @@ async function addWear(d){const it=byId(curId);if(!d)return;it.wears.push(d);it.
 $('#dContent').addEventListener('click',async e=>{
   if(e.target.id==='woreBtn'){const it=byId(curId);if(it.wears.includes(today())){toast('Already logged today')}else addWear(today())}
   else if(e.target.id==='logBtn'){const d=$('#logDate').value;if(d>today())return toast('That date is in the future');addWear(d)}
-  else if(e.target.id==='washBtn'){const it=byId(curId);it.washes??=[];if(it.washes.includes(today()))return toast('Already logged today');it.washes.push(today());it.updated=Date.now();await dbPut(it);renderDetail();toast('Wash logged')}
+  else if(e.target.id==='washBtn'){const it=byId(curId);it.washes??=[];if(it.washes.some(x=>x.d===today()))return toast('Already logged today');const w=wearsBefore(it.wears,it.washes.map(x=>x.d),today());it.washes.push({d:today(),w:(it.washes.length||!it.pastWears)?w:w+it.pastWears});it.updated=Date.now();await dbPut(it);renderDetail();toast(`Wash logged after ${it.washes.at(-1).w} wear${it.washes.at(-1).w===1?'':'s'}`)}
   else if(e.target.dataset.rm!=null){const it=byId(curId);it.wears.splice(+e.target.dataset.rm,1);await dbPut(it);renderDetail();renderCloset()}
 });
 
@@ -462,8 +479,8 @@ $('#dContent').addEventListener('click',async e=>{
 let editId=null,pendingPhoto=null,formColors=new Set(),formSeasons=new Set(),fWashDates=[],fDatedWears=0;
 const intVal=sel=>{const v=parseInt($(sel).value,10);return isNaN(v)?0:Math.max(0,v)};
 function renderWashList(){
-  fWashDates.sort((a,b)=>b.localeCompare(a));
-  const html=fWashDates.map((d,i)=>`<li>${fmtD(d)}<button type="button" data-rmwash="${i}" aria-label="Remove">×</button></li>`).join('');
+  fWashDates.sort((a,b)=>b.d.localeCompare(a.d));
+  const html=fWashDates.map((x,i)=>`<li><span>${fmtD(x.d)}</span><label>after<input type="number" inputmode="numeric" min="0" step="1" data-washw="${i}" value="${x.w??''}" placeholder="–">wears</label><button type="button" data-rmwash="${i}" aria-label="Remove">×</button></li>`).join('');
   if($('#washList').innerHTML!==html)$('#washList').innerHTML=html;
   const notes=[];
   if(fDatedWears)notes.push(`Includes ${fDatedWears} dated wear${fDatedWears===1?'':'s'} logged with “Wore it today”.`);
@@ -481,8 +498,17 @@ $('#form').addEventListener('click',e=>{
   const rm=e.target.closest('[data-rmwash]');if(rm){fWashDates.splice(+rm.dataset.rmwash,1);$('#iWashes').value=Math.max(fWashDates.length,intVal('#iWashes')-1);clampCounts()}
 });
 ['#iWears','#iWashes'].forEach(s=>$(s).addEventListener('change',clampCounts));
+$('#washList').addEventListener('input',e=>{const i=e.target.dataset.washw;if(i==null)return;const v=parseInt(e.target.value,10);fWashDates[+i].w=isNaN(v)?null:Math.max(0,v)});
+function suggestWashW(){const d=$('#iWashDate').value;if(!d||$('#iWashW').dataset.typed)return;const it=editId?byId(editId):null;
+  const n=wearsBefore(it?.wears||[],fWashDates.map(x=>x.d),d);$('#iWashW').value=n||''}
+$('#iWashDate').addEventListener('change',suggestWashW);
+$('#iWashW').addEventListener('input',()=>{$('#iWashW').dataset.typed=1});
+function applyLogToggle(){const on=localStorage.getItem('closet-log')!=='off';$('#logToggle').setAttribute('aria-checked',on);$('#logBody').classList.toggle('hidden',!on)}
+$('#logToggle').onclick=()=>{localStorage.setItem('closet-log',localStorage.getItem('closet-log')==='off'?'on':'off');applyLogToggle()};
+applyLogToggle();
 $('#addWash').onclick=()=>{const d=$('#iWashDate').value;if(!d)return toast('Pick a date first');if(d>today())return toast('That date is in the future');
-  if(fWashDates.includes(d))return toast('Already logged');fWashDates.push(d);$('#iWashDate').value='';clampCounts()};
+  if(fWashDates.some(x=>x.d===d))return toast('Already logged');const v=parseInt($('#iWashW').value,10);
+  fWashDates.push({d,w:isNaN(v)?null:Math.max(0,v)});$('#iWashDate').value='';$('#iWashW').value='';delete $('#iWashW').dataset.typed;clampCounts()};
 $('#iCat').innerHTML=CATS.map(c=>`<option>${c}</option>`).join('');
 function renderFormPickers(){
   $('#iColors').innerHTML=Object.entries(COLORS).map(([n,v])=>`<button type="button" class="sw ${formColors.has(n)?'on':''}" data-col="${n}" title="${n}" style="background:${v}"></button>`).join('');
@@ -498,8 +524,8 @@ async function openForm(id){
   $('#iSize').value=it?.size||'';$('#iPrice').value=it?.price??'';$('#iDate').value=it?.purchased||'';
   $('#iTags').value=it?.tags.join(', ')||'';$('#iNotes').value=it?.notes||'';
   formColors=new Set(it?.colors||[]);formSeasons=new Set(it?.seasons||[]);renderFormPickers();
-  fWashDates=[...(it?.washes||[])];fDatedWears=it?.wears.length||0;
-  $('#iWears').value=it?wc(it):0;$('#iWashes').value=it?wsc(it):0;$('#iWashDate').value='';$('#iWashDate').max=today();clampCounts();
+  fWashDates=(it?.washes||[]).map(x=>({...x}));fDatedWears=it?.wears.length||0;
+  $('#iWears').value=it?wc(it):0;$('#iWashes').value=it?wsc(it):0;$('#iWashDate').value='';$('#iWashW').value='';delete $('#iWashW').dataset.typed;$('#iWashDate').max=today();clampCounts();
   $('#brandList').innerHTML=[...new Set(items.map(i=>i.brand).filter(Boolean))].sort().map(b=>`<option value="${esc(b)}">`).join('');
   setPick(it?.hasPhoto?await photoURL(it.id,false):null);
   $('#fDelete').classList.toggle('hidden',!it);
@@ -517,7 +543,7 @@ $('#fSave').onclick=async()=>{
     price:isNaN(price)?null:price,purchased:$('#iDate').value||'',colors:[...formColors],seasons:[...formSeasons],
     tags:[...new Set($('#iTags').value.split(',').map(t=>t.trim().toLowerCase()).filter(Boolean))],notes:$('#iNotes').value.trim(),
     wears:old?.wears||[],pastWears:Math.max(0,intVal('#iWears')-(old?.wears.length||0)),
-    washes:[...fWashDates],pastWashes:Math.max(0,intVal('#iWashes')-fWashDates.length),
+    washes:fWashDates.map(x=>({...x})),pastWashes:Math.max(0,intVal('#iWashes')-fWashDates.length),
     created:old?.created||Date.now(),updated:Date.now(),hasPhoto:old?.hasPhoto||false};
   if(pendingPhoto){await phPut(it.id,pendingPhoto.full);await phPut(it.id+':t',pendingPhoto.thumb);dropURLs(it.id);it.hasPhoto=true}
   await dbPut(it);
@@ -592,7 +618,7 @@ $('#importFile').onchange=async e=>{const f=e.target.files[0];e.target.value='';
     let n=0;for(const it of d.items){
       const clean={id:String(it.id),name:String(it.name||'Untitled'),category:CATS.includes(it.category)?it.category:'Other',brand:String(it.brand||''),size:String(it.size||''),
         price:typeof it.price==='number'?it.price:null,purchased:String(it.purchased||''),colors:(it.colors||[]).filter(c=>COLORS[c]),seasons:(it.seasons||[]).filter(s=>SEASONS.includes(s)),
-        tags:(it.tags||[]).map(String),notes:String(it.notes||''),wears:(it.wears||[]).filter(w=>/^\d{4}-\d\d-\d\d$/.test(w)),washes:(it.washes||[]).filter(w=>/^\d{4}-\d\d-\d\d$/.test(w)),pastWears:Math.max(0,+it.pastWears||0),pastWashes:Math.max(0,+it.pastWashes||0),created:+it.created||Date.now(),updated:+it.updated||Date.now(),hasPhoto:false};
+        tags:(it.tags||[]).map(String),notes:String(it.notes||''),wears:(it.wears||[]).filter(w=>/^\d{4}-\d\d-\d\d$/.test(w)),washes:(it.washes||[]).map(normWash).filter(Boolean),pastWears:Math.max(0,+it.pastWears||0),pastWashes:Math.max(0,+it.pastWashes||0),created:+it.created||Date.now(),updated:+it.updated||Date.now(),hasPhoto:false};
       const src=d.photos?.[clean.id];
       if(src&&/^data:image\//.test(src)){try{const p=await makePhotos(src);await phPut(clean.id,p.full);await phPut(clean.id+':t',p.thumb);dropURLs(clean.id);clean.hasPhoto=true}catch{}}
       else{const ex=byId(clean.id);if(ex?.hasPhoto)clean.hasPhoto=true}
@@ -687,7 +713,7 @@ document.querySelector('.tabbar').onclick=e=>{const t=e.target.dataset.tab;if(!t
 (async()=>{
   
   db=await openDB();items=await dbAll();
-  items.forEach(i=>{i.wears??=[];i.washes??=[];i.pastWears??=0;i.pastWashes??=0;i.tags??=[];i.colors??=[];i.seasons??=[]});
+  items.forEach(i=>{i.wears??=[];i.washes=(i.washes||[]).map(normWash).filter(Boolean);i.pastWears??=0;i.pastWashes??=0;i.tags??=[];i.colors??=[];i.seasons??=[]});
   renderCloset();
   if(navigator.storage?.persist)navigator.storage.persist().catch(()=>{});
   if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
